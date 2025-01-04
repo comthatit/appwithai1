@@ -1,14 +1,16 @@
 import streamlit as st
 import pandas as pd
+import re  # Regular expressions for extracting location data
+
+def extract_district(school_name):
+    """Extract district information from school name using regex."""
+    match = re.search(r'(서울시\\s[가-힣]+구)', school_name)
+    if match:
+        return match.group(1)
+    return "기타"
 
 # Streamlit app title
-st.title("학생 데이터 분석")
-
-# Import openpyxl to handle Excel files
-try:
-    import openpyxl
-except ImportError:
-    st.error("`openpyxl` 라이브러리가 필요합니다. 다음 명령어를 실행하세요: pip install openpyxl")
+st.title("지역별 중학교 통계 분석")
 
 # File uploader
 uploaded_file = st.file_uploader("학생 데이터 파일을 업로드하세요 (Excel 형식)", type=["xlsx"])
@@ -27,35 +29,23 @@ if uploaded_file:
         df['중학교'] = df['중학교'].astype(str)
         df['성별'] = df['성별'].astype(str)
 
-        # Middle school stats
-        middle_school_stats = df['중학교'].value_counts()
+        # Extract district information
+        df['지역'] = df['중학교'].apply(extract_district)
 
-        # Gender stats
-        gender_stats = df['성별'].value_counts()
+        # District statistics
+        district_stats = df['지역'].value_counts()
 
         # Display data
         st.subheader("업로드된 데이터")
         st.dataframe(df)
 
-        st.subheader("중학교 통계")
-        st.write(middle_school_stats)
+        st.subheader("지역별 통계")
+        st.write(district_stats)
 
-        st.subheader("성별 통계")
-        st.write(gender_stats)
+        # Visualization
+        st.subheader("지역별 통계 시각화")
+        st.bar_chart(district_stats)
 
-        # Visualizations
-        st.subheader("시각화")
-
-        # Middle school chart
-        st.write("### 중학교별 학생 수 (상위 10개)")
-        st.bar_chart(middle_school_stats.head(10))
-
-        # Gender distribution chart
-        st.write("### 성별 분포")
-        gender_df = gender_stats.reset_index()
-        gender_df.columns = ['성별', '학생 수']
-        st.write(gender_df)
-        st.bar_chart(data=gender_df, x='성별', y='학생 수')
     except Exception as e:
         st.error(f"파일 처리 중 오류가 발생했습니다: {e}")
 else:
