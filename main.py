@@ -1,26 +1,8 @@
 import streamlit as st
 import pandas as pd
 
-# Load address mapping data
-@st.cache
-def load_address_data():
-    try:
-        address_df = pd.read_excel("address.xls")
-        address_df.columns = ["중학교명", "시", "구"]  # Ensure columns match expected names
-        return address_df
-    except Exception as e:
-        st.error(f"주소 매핑 데이터 로드 중 오류가 발생했습니다: {e}")
-        return None
-
-# Function to map school names to region information
-def map_region(school_name, address_df):
-    match = address_df[address_df["중학교명"] == school_name]
-    if not match.empty:
-        return f"{match.iloc[0]['시']} {match.iloc[0]['구']}"
-    return "정보 없음"
-
 # Streamlit app title
-st.title("학생 데이터 분석 및 지역 추가")
+st.title("중학교별 통계 분석")
 
 # File uploader
 uploaded_file = st.file_uploader("학생 데이터 파일을 업로드하세요 (Excel 형식)", type=["xlsx"])
@@ -37,38 +19,22 @@ if uploaded_file:
         df = df[~df['연번'].isin(['연번', None])]
         df['중학교'] = df['중학교'].astype(str)
 
-        # Load address data
-        address_df = load_address_data()
-        if address_df is not None:
-            # Add region information
-            df['지역'] = df['중학교'].apply(lambda x: map_region(x, address_df))
+        # Middle school statistics
+        middle_school_stats = df['중학교'].value_counts()
 
-            # Display updated data
-            st.subheader("업데이트된 데이터")
-            st.dataframe(df)
+        # Display data
+        st.subheader("업로드된 데이터")
+        st.dataframe(df)
 
-            # Download updated file
-            st.subheader("업데이트된 파일 다운로드")
-            output_file = "updated_data.xlsx"
-            df.to_excel(output_file, index=False)
-            with open(output_file, "rb") as file:
-                st.download_button(
-                    label="업데이트된 파일 다운로드",
-                    data=file,
-                    file_name="updated_data.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+        # Display middle school statistics
+        st.subheader("중학교별 학생 수 통계")
+        st.write(middle_school_stats)
 
-            # Regional statistics
-            st.subheader("지역별 통계 (구별)")
-            district_stats = df['지역'].value_counts()
-            st.write(district_stats)
-
-            # Visualization
-            st.subheader("지역별 통계 시각화")
-            st.bar_chart(district_stats)
+        # Visualization
+        st.subheader("중학교별 학생 수 시각화")
+        st.bar_chart(middle_school_stats)
 
     except Exception as e:
         st.error(f"파일 처리 중 오류가 발생했습니다: {e}")
 else:
-    st.write("파일을 업로드하면 지역 정보와 통계가 표시됩니다.")
+    st.write("파일을 업로드하면 중학교별 통계가 표시됩니다.")
