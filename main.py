@@ -1,52 +1,58 @@
 import streamlit as st
 import pandas as pd
-import re  # Regular expressions for extracting location data
 
-def extract_district(school_name):
-    """Extract district information from school name using regex."""
-    match = re.search(r'(서울시\\s[가-힣]+구)', school_name)
-    if match:
-        return match.group(1)
-    return "기타"
+# 지역 매핑 데이터 로드
+@st.cache
+def load_mapping_data():
+    # 예제 데이터셋
+    data = {
+        "중학교명": ["선린중학교", "도곡중학교", "숭실중학교", "목일중학교"],
+        "지역정보": ["서울특별시 용산구", "서울특별시 강남구", "서울특별시 동작구", "서울특별시 양천구"],
+    }
+    return pd.DataFrame(data)
 
-# Streamlit app title
-st.title("지역별 중학교 통계 분석")
+# 지역 정보 추출 함수
+def map_district(school_name, mapping_df):
+    match = mapping_df[mapping_df["중학교명"] == school_name]
+    if not match.empty:
+        return match.iloc[0]["지역정보"]
+    return "정보 없음"
 
-# File uploader
+# Streamlit 앱
+st.title("중학교 지역별 분석")
+
+# 사용자 파일 업로드
 uploaded_file = st.file_uploader("학생 데이터 파일을 업로드하세요 (Excel 형식)", type=["xlsx"])
 
 if uploaded_file:
-    try:
-        # Load Excel file
-        data = pd.ExcelFile(uploaded_file)
-        sheet_name = data.sheet_names[0]
-        df = data.parse(sheet_name)
+    # Load Excel file
+    user_data = pd.ExcelFile(uploaded_file)
+    sheet_name = user_data.sheet_names[0]
+    df = user_data.parse(sheet_name)
 
-        # Rename columns
-        df.columns = ['연번', '임시반', '임시번호', '중학교', '성명', '성별', '합격학과']
-        df = df[~df['연번'].isin(['연번', None])]
-        df['연번'] = pd.to_numeric(df['연번'], errors='coerce')
-        df['중학교'] = df['중학교'].astype(str)
-        df['성별'] = df['성별'].astype(str)
+    # Rename columns
+    df.columns = ['연번', '임시반', '임시번호', '중학교', '성명', '성별', '합격학과']
+    df = df[~df['연번'].isin(['연번', None])]
+    df['중학교'] = df['중학교'].astype(str)
 
-        # Extract district information
-        df['지역'] = df['중학교'].apply(extract_district)
+    # 지역 매핑 데이터 로드
+    mapping_df = load_mapping_data()
 
-        # District statistics
-        district_stats = df['지역'].value_counts()
+    # 지역 정보 추가
+    df['지역'] = df['중학교'].apply(lambda x: map_district(x, mapping_df))
 
-        # Display data
-        st.subheader("업로드된 데이터")
-        st.dataframe(df)
+    # 지역별 통계
+    district_stats = df['지역'].value_counts()
 
-        st.subheader("지역별 통계")
-        st.write(district_stats)
+    # 결과 출력
+    st.subheader("업로드된 데이터와 지역 정보")
+    st.dataframe(df)
 
-        # Visualization
-        st.subheader("지역별 통계 시각화")
-        st.bar_chart(district_stats)
+    st.subheader("지역별 통계")
+    st.write(district_stats)
 
-    except Exception as e:
-        st.error(f"파일 처리 중 오류가 발생했습니다: {e}")
+    st.subheader("지역별 통계 시각화")
+    st.bar_chart(district_stats)
+
 else:
-    st.write("파일을 업로드하면 데이터 분석 결과가 표시됩니다.")
+    st.write("파일을 업로드하면 지역 정보와 통계가 표시됩니다.")
